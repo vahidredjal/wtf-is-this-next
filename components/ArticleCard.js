@@ -1,12 +1,5 @@
 import { CAT_LABEL } from '../lib/categories';
-
-const POSITION_CSS = {
-  center: '50% 50%',
-  top: '50% 0%',
-  bottom: '50% 100%',
-  left: '0% 50%',
-  right: '100% 50%'
-};
+import { POSITION_CSS } from '../lib/imageFit';
 
 export function MediaBox({ article, height }) {
   if (!article.image_url) {
@@ -21,13 +14,14 @@ export function MediaBox({ article, height }) {
     );
   }
   const pos = POSITION_CSS[article.image_position || 'center'];
+  const fit = article.image_fit || 'cover';
   return (
     <div className="img-ph" style={{ width: '100%', height }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={article.image_url}
         alt=""
-        style={{ width: '100%', height: '100%', objectFit: 'fill', objectPosition: pos, display: 'block' }}
+        style={{ width: '100%', height: '100%', objectFit: fit, objectPosition: pos, display: 'block' }}
       />
     </div>
   );

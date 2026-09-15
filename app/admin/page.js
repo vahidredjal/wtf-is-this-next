@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { CATS, CAT_LABEL } from '../../lib/categories';
+import { POSITION_LABEL, POSITION_CSS, FIT_LABEL } from '../../lib/imageFit';
 
-const POSITION_LABEL = { center: 'Center', top: 'Top', bottom: 'Bottom', left: 'Left', right: 'Right' };
 const ALLOWED_TAGS = { P: 1, STRONG: 1, B: 1, EM: 1, I: 1, S: 1, STRIKE: 1, U: 1, BR: 1, A: 1 };
 
 function isSafeHref(href) {
@@ -61,6 +61,9 @@ export default function AdminPage() {
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewFit, setPreviewFit] = useState('cover');
+  const [previewPosition, setPreviewPosition] = useState('center');
   const editorRef = useRef(null);
 
   useEffect(() => {
@@ -100,9 +103,23 @@ export default function AdminPage() {
 
   const editing = editingId ? articles.find((a) => a.id === editingId) : null;
 
-  function startNew() { setEditingId(null); setShowForm(true); }
-  function startEdit(id) { setEditingId(id); setShowForm(true); }
+  function resetPreview(article) {
+    setPreviewUrl(article ? article.image_url : null);
+    setPreviewFit(article ? (article.image_fit || 'cover') : 'cover');
+    setPreviewPosition(article ? (article.image_position || 'center') : 'center');
+  }
+
+  function startNew() { setEditingId(null); setShowForm(true); resetPreview(null); }
+  function startEdit(id) { setEditingId(id); setShowForm(true); resetPreview(articles.find((a) => a.id === id)); }
   function cancelForm() { setEditingId(null); setShowForm(false); }
+
+  function handleImageChange(e) {
+    const file = e.target.files[0];
+    setPreviewUrl((prev) => {
+      if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
+      return file ? URL.createObjectURL(file) : (editing ? editing.image_url : null);
+    });
+  }
 
   async function deleteConfirm() {
     const id = pendingDeleteId;
@@ -148,6 +165,7 @@ export default function AdminPage() {
         category,
         image_url: imageUrl,
         image_position: form.imagePosition.value,
+        image_fit: form.imageFit.value,
         tldr: form.tldr.value.trim(),
         body_html: bodyHtml,
         read_time: readTime,
@@ -241,16 +259,47 @@ export default function AdminPage() {
             </div>
 
             <label>Image</label>
-            <input type="file" name="image" accept="image/*" />
+            <input type="file" name="image" accept="image/*" onChange={handleImageChange} />
             <div className="hint">
               {editing ? 'Leave blank to keep the current image.' : 'Optional — leave blank to use a placeholder.'}
             </div>
 
+            {previewUrl ? (
+              <div className="image-preview" style={{ height: 240 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewUrl}
+                  alt=""
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: previewFit,
+                    objectPosition: POSITION_CSS[previewPosition],
+                    display: 'block'
+                  }}
+                />
+              </div>
+            ) : null}
+
+            <label>Image Fit</label>
+            <select
+              name="imageFit"
+              defaultValue={editing ? (editing.image_fit || 'cover') : 'cover'}
+              onChange={(e) => setPreviewFit(e.target.value)}
+            >
+              {Object.keys(FIT_LABEL).map((f) => <option key={f} value={f}>{FIT_LABEL[f]}</option>)}
+            </select>
+            <div className="hint">Fill &amp; Crop scales and crops to fit the box. Show Full Photo never crops (adds padding instead). Stretch to Fit fills the box exactly but can distort the image.</div>
+
             <label>Image Position</label>
-            <select name="imagePosition" defaultValue={editing ? (editing.image_position || 'center') : 'center'}>
+            <select
+              name="imagePosition"
+              defaultValue={editing ? (editing.image_position || 'center') : 'center'}
+              onChange={(e) => setPreviewPosition(e.target.value)}
+            >
               {Object.keys(POSITION_LABEL).map((p) => <option key={p} value={p}>{POSITION_LABEL[p]}</option>)}
             </select>
-            <div className="hint">Which part of the photo stays in frame if it gets cropped.</div>
+            <div className="hint">Which part of the photo stays in frame under Fill &amp; Crop or Show Full Photo.</div>
 
             <label>Read Time</label>
             <input type="text" name="readTime" defaultValue={editing ? editing.read_time : ''} placeholder="e.g. 4 min read" />

@@ -64,3 +64,6 @@ create policy "authenticated update article images" on storage.objects
 drop policy if exists "authenticated delete article images" on storage.objects;
 create policy "authenticated delete article images" on storage.objects
   for delete using (bucket_id = 'article-images' and auth.role() = 'authenticated');
+
+-- Added later: per-article choice of how the photo fills its box.
+alter table articles add column if not exists image_fit text default 'cover';

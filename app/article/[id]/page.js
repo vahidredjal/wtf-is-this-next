@@ -1,5 +1,6 @@
 import { getArticleById } from '../../../lib/articles';
 import { CAT_LABEL } from '../../../lib/categories';
+import { POSITION_CSS } from '../../../lib/imageFit';
 import { notFound } from 'next/navigation';
 
 export const revalidate = 0;
@@ -65,7 +66,13 @@ export default async function ArticlePage({ params }) {
           <img
             src={article.image_url}
             alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block' }}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: article.image_fit || 'cover',
+              objectPosition: POSITION_CSS[article.image_position || 'center'],
+              display: 'block'
+            }}
           />
         </div>
       ) : null}
