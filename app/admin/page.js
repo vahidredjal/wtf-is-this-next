@@ -64,6 +64,7 @@ export default function AdminPage() {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewFit, setPreviewFit] = useState('cover');
   const [previewPosition, setPreviewPosition] = useState('center');
+  const [showSettings, setShowSettings] = useState(false);
   const editorRef = useRef(null);
 
   useEffect(() => {
@@ -109,8 +110,8 @@ export default function AdminPage() {
     setPreviewPosition(article ? (article.image_position || 'center') : 'center');
   }
 
-  function startNew() { setEditingId(null); setShowForm(true); resetPreview(null); }
-  function startEdit(id) { setEditingId(id); setShowForm(true); resetPreview(articles.find((a) => a.id === id)); }
+  function startNew() { setEditingId(null); setShowForm(true); setShowSettings(false); resetPreview(null); }
+  function startEdit(id) { setEditingId(id); setShowForm(true); setShowSettings(false); resetPreview(articles.find((a) => a.id === id)); }
   function cancelForm() { setEditingId(null); setShowForm(false); }
 
   function handleImageChange(e) {
@@ -214,6 +215,148 @@ export default function AdminPage() {
     document.execCommand('createLink', false, url);
   }
 
+  if (showForm) {
+    return (
+      <form
+        key={editingId || 'new'}
+        onSubmit={(e) => handleSave(e, e.nativeEvent.submitter ? e.nativeEvent.submitter.dataset.status : 'draft')}
+      >
+          <div className="editor-topbar">
+            <button type="button" className="editor-back" onClick={cancelForm} aria-label="Back">&larr;</button>
+            <div className="editor-topbar-right">
+              <span className="publish-status" style={{ marginTop: 0 }}>{status}</span>
+              <button type="submit" data-status="draft" className="btn btn-outline" disabled={saving}>Save Draft</button>
+              <button type="submit" data-status="published" className="btn btn-primary" disabled={saving}>Publish</button>
+            </div>
+          </div>
+
+          <div className="editor-canvas">
+            <input
+              className="editor-title"
+              name="headline"
+              placeholder="Title"
+              defaultValue={editing ? editing.headline : ''}
+              required
+            />
+            <input
+              className="editor-subtitle"
+              name="dek"
+              placeholder="Add a subtitle..."
+              defaultValue={editing ? editing.dek : ''}
+            />
+
+            <div className="editor-byline-row">
+              <span className="editor-pill">
+                <input
+                  className="editor-pill-input"
+                  name="byline"
+                  defaultValue={editing ? editing.byline : ''}
+                  placeholder="By Your Name"
+                  required
+                />
+              </span>
+              <select className="editor-pill editor-pill-select" name="category" defaultValue={editing ? editing.category : CATS[0]}>
+                {CATS.map((c) => <option key={c} value={c}>{CAT_LABEL[c]}</option>)}
+              </select>
+            </div>
+
+            <div className="editor-toolbar">
+              <button type="button" title="Bold" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('bold')}><strong>B</strong></button>
+              <button type="button" title="Italic" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('italic')}><em>I</em></button>
+              <button type="button" title="Strikethrough" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('strikeThrough')}><s>S</s></button>
+              <button type="button" title="Underline" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('underline')}><u>U</u></button>
+              <button type="button" title="Add link" onMouseDown={(e) => e.preventDefault()} onClick={insertLink}>&#128279;</button>
+              <button type="button" title="Remove link" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('unlink')}>&#128279;&#8416;</button>
+            </div>
+
+            <div
+              className="editor-body"
+              data-placeholder="Start writing..."
+              contentEditable
+              suppressContentEditableWarning
+              ref={editorRef}
+              dangerouslySetInnerHTML={{ __html: editing ? (editing.body_html || '') : '' }}
+            />
+
+            {/* Hidden fields kept in the form so handleSave can read them via form.<name>.value */}
+            <input type="hidden" name="imageFit" value={previewFit} readOnly />
+            <input type="hidden" name="imagePosition" value={previewPosition} readOnly />
+          </div>
+
+          <button type="button" className="editor-settings-fab" onClick={() => setShowSettings(true)}>
+            &#9881; Settings
+          </button>
+
+          {showSettings && (
+            <div className="editor-settings-overlay" onClick={() => setShowSettings(false)}>
+              <div className="editor-settings-panel admin-form" onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                  <h2 className="section-title" style={{ fontSize: 22 }}>Settings</h2>
+                  <button type="button" className="btn btn-outline btn-small" onClick={() => setShowSettings(false)}>Done</button>
+                </div>
+
+                <div className="field-row">
+                  <input
+                    type="checkbox"
+                    id="hero-check"
+                    name="hero"
+                    defaultChecked={editing ? editing.id === heroId : false}
+                  />
+                  <label htmlFor="hero-check" style={{ margin: 0 }}>Make this the main hero story</label>
+                </div>
+
+                <label>Image</label>
+                <input type="file" name="image" accept="image/*" onChange={handleImageChange} />
+                <div className="hint">
+                  {editing ? 'Leave blank to keep the current image.' : 'Optional — leave blank to use a placeholder.'}
+                </div>
+
+                {previewUrl ? (
+                  <div className="image-preview" style={{ height: 200 }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={previewUrl}
+                      alt=""
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: previewFit,
+                        objectPosition: POSITION_CSS[previewPosition],
+                        display: 'block'
+                      }}
+                    />
+                  </div>
+                ) : null}
+
+                <label>Image Fit</label>
+                <select value={previewFit} onChange={(e) => setPreviewFit(e.target.value)}>
+                  {Object.keys(FIT_LABEL).map((f) => <option key={f} value={f}>{FIT_LABEL[f]}</option>)}
+                </select>
+                <div className="hint">Fill &amp; Crop scales and crops to fit the box. Show Full Photo never crops (adds padding instead). Stretch to Fit fills the box exactly but can distort the image.</div>
+
+                <label>Image Position</label>
+                <select value={previewPosition} onChange={(e) => setPreviewPosition(e.target.value)}>
+                  {Object.keys(POSITION_LABEL).map((p) => <option key={p} value={p}>{POSITION_LABEL[p]}</option>)}
+                </select>
+                <div className="hint">Which part of the photo stays in frame under Fill &amp; Crop or Show Full Photo.</div>
+
+                <label>Read Time</label>
+                <input type="text" name="readTime" defaultValue={editing ? editing.read_time : ''} placeholder="e.g. 4 min read" />
+
+                <label>Well, WTF is this? (short TL;DR)</label>
+                <textarea
+                  name="tldr"
+                  style={{ minHeight: 80 }}
+                  defaultValue={editing ? editing.tldr || '' : ''}
+                  placeholder="One or two sentences summing up the story."
+                />
+              </div>
+            </div>
+          )}
+      </form>
+    );
+  }
+
   return (
     <div className="admin-wrap">
       <a href="/" className="see-all" style={{ display: 'inline-block', marginBottom: 24 }}>&larr; Back to the Feed</a>
@@ -222,155 +365,38 @@ export default function AdminPage() {
         Signed in as {session.user.email}. Changes go live for everyone immediately.
       </p>
 
-      {!showForm && <button className="btn btn-primary" onClick={startNew}>+ New Article</button>}
+      <button className="btn btn-primary" onClick={startNew}>+ New Article</button>
 
-      {showForm && (
-        <>
-          <h2 className="section-title" style={{ fontSize: 28, marginBottom: 20 }}>
-            {editing ? 'Edit Article' : 'New Article'}
-          </h2>
-          <form
-            key={editingId || 'new'}
-            className="admin-form"
-            onSubmit={(e) => handleSave(e, e.nativeEvent.submitter ? e.nativeEvent.submitter.dataset.status : 'draft')}
-          >
-            <label>Headline</label>
-            <input type="text" name="headline" defaultValue={editing ? editing.headline : ''} required />
-
-            <label>Dek (optional subhead)</label>
-            <input type="text" name="dek" defaultValue={editing ? editing.dek : ''} />
-
-            <label>Byline</label>
-            <input type="text" name="byline" defaultValue={editing ? editing.byline : ''} placeholder="By Your Name" required />
-
-            <label>Category</label>
-            <select name="category" defaultValue={editing ? editing.category : CATS[0]}>
-              {CATS.map((c) => <option key={c} value={c}>{CAT_LABEL[c]}</option>)}
-            </select>
-
-            <div className="field-row">
-              <input
-                type="checkbox"
-                id="hero-check"
-                name="hero"
-                defaultChecked={editing ? editing.id === heroId : false}
-              />
-              <label htmlFor="hero-check" style={{ margin: 0 }}>Make this the main hero story</label>
-            </div>
-
-            <label>Image</label>
-            <input type="file" name="image" accept="image/*" onChange={handleImageChange} />
-            <div className="hint">
-              {editing ? 'Leave blank to keep the current image.' : 'Optional — leave blank to use a placeholder.'}
-            </div>
-
-            {previewUrl ? (
-              <div className="image-preview" style={{ height: 240 }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={previewUrl}
-                  alt=""
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: previewFit,
-                    objectPosition: POSITION_CSS[previewPosition],
-                    display: 'block'
-                  }}
-                />
+      <div style={{ marginTop: 32 }}>
+        {articles.map((a) => (
+          <div className="admin-list-item" key={a.id}>
+            <div className="meta">
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <span className="chip" style={{ background: `var(--cat-${a.category})`, width: 'fit-content' }}>
+                  {CAT_LABEL[a.category]}{a.id === heroId ? ' · HERO' : ''}
+                </span>
+                {a.status !== 'published' ? <span className="chip chip-draft" style={{ width: 'fit-content' }}>DRAFT</span> : null}
               </div>
-            ) : null}
-
-            <label>Image Fit</label>
-            <select
-              name="imageFit"
-              defaultValue={editing ? (editing.image_fit || 'cover') : 'cover'}
-              onChange={(e) => setPreviewFit(e.target.value)}
-            >
-              {Object.keys(FIT_LABEL).map((f) => <option key={f} value={f}>{FIT_LABEL[f]}</option>)}
-            </select>
-            <div className="hint">Fill &amp; Crop scales and crops to fit the box. Show Full Photo never crops (adds padding instead). Stretch to Fit fills the box exactly but can distort the image.</div>
-
-            <label>Image Position</label>
-            <select
-              name="imagePosition"
-              defaultValue={editing ? (editing.image_position || 'center') : 'center'}
-              onChange={(e) => setPreviewPosition(e.target.value)}
-            >
-              {Object.keys(POSITION_LABEL).map((p) => <option key={p} value={p}>{POSITION_LABEL[p]}</option>)}
-            </select>
-            <div className="hint">Which part of the photo stays in frame under Fill &amp; Crop or Show Full Photo.</div>
-
-            <label>Read Time</label>
-            <input type="text" name="readTime" defaultValue={editing ? editing.read_time : ''} placeholder="e.g. 4 min read" />
-
-            <label>Well, WTF is this? (short TL;DR)</label>
-            <textarea
-              name="tldr"
-              style={{ minHeight: 80 }}
-              defaultValue={editing ? editing.tldr || '' : ''}
-              placeholder="One or two sentences summing up the story."
-            />
-
-            <label>Body</label>
-            <div className="rich-toolbar">
-              <button type="button" title="Bold" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('bold')}><strong>B</strong></button>
-              <button type="button" title="Italic" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('italic')}><em>I</em></button>
-              <button type="button" title="Strikethrough" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('strikeThrough')}><s>S</s></button>
-              <button type="button" title="Underline" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('underline')}><u>U</u></button>
-              <button type="button" title="Add link" onMouseDown={(e) => e.preventDefault()} onClick={insertLink}>Link</button>
-              <button type="button" title="Remove link" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('unlink')}>Unlink</button>
+              <strong style={{ fontSize: 15 }}>{a.headline}</strong>
+              <span className="byline">{a.byline}</span>
             </div>
-            <div
-              className="rich-editor"
-              contentEditable
-              suppressContentEditableWarning
-              ref={editorRef}
-              dangerouslySetInnerHTML={{ __html: editing ? (editing.body_html || '') : '' }}
-            />
-
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <button type="submit" data-status="draft" className="btn btn-outline" disabled={saving}>Save Draft</button>
-              <button type="submit" data-status="published" className="btn btn-primary" disabled={saving}>Publish</button>
-              <button type="button" className="btn btn-outline" onClick={cancelForm}>Cancel</button>
+            <div className="actions">
+              <button className="btn btn-outline btn-small" onClick={() => { window.location.href = `/article/${a.id}`; }}>View</button>
+              <button className="btn btn-outline btn-small" onClick={() => startEdit(a.id)}>Edit</button>
+              <button className="btn btn-outline btn-small" onClick={() => setPendingDeleteId(a.id)}>Delete</button>
             </div>
-            <div className="publish-status">{status}</div>
-          </form>
-        </>
-      )}
-
-      {!showForm && (
-        <div style={{ marginTop: 32 }}>
-          {articles.map((a) => (
-            <div className="admin-list-item" key={a.id}>
-              <div className="meta">
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  <span className="chip" style={{ background: `var(--cat-${a.category})`, width: 'fit-content' }}>
-                    {CAT_LABEL[a.category]}{a.id === heroId ? ' · HERO' : ''}
-                  </span>
-                  {a.status !== 'published' ? <span className="chip chip-draft" style={{ width: 'fit-content' }}>DRAFT</span> : null}
+            {pendingDeleteId === a.id && (
+              <div className="delete-confirm">
+                Delete &ldquo;{a.headline}&rdquo;? This can&apos;t be undone.
+                <div style={{ marginTop: 10, display: 'flex', gap: 10 }}>
+                  <button className="btn btn-danger btn-small" onClick={deleteConfirm}>Delete It</button>
+                  <button className="btn btn-outline btn-small" onClick={() => setPendingDeleteId(null)}>Cancel</button>
                 </div>
-                <strong style={{ fontSize: 15 }}>{a.headline}</strong>
-                <span className="byline">{a.byline}</span>
               </div>
-              <div className="actions">
-                <button className="btn btn-outline btn-small" onClick={() => { window.location.href = `/article/${a.id}`; }}>View</button>
-                <button className="btn btn-outline btn-small" onClick={() => startEdit(a.id)}>Edit</button>
-                <button className="btn btn-outline btn-small" onClick={() => setPendingDeleteId(a.id)}>Delete</button>
-              </div>
-              {pendingDeleteId === a.id && (
-                <div className="delete-confirm">
-                  Delete &ldquo;{a.headline}&rdquo;? This can&apos;t be undone.
-                  <div style={{ marginTop: 10, display: 'flex', gap: 10 }}>
-                    <button className="btn btn-danger btn-small" onClick={deleteConfirm}>Delete It</button>
-                    <button className="btn btn-outline btn-small" onClick={() => setPendingDeleteId(null)}>Cancel</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
