@@ -83,12 +83,29 @@ export default function AdminPage() {
     setHeroId(data ? data.hero_article_id : null);
   }
 
+  const userId = session ? session.user.id : null;
   useEffect(() => {
-    if (session) {
+    if (userId) {
       loadArticles();
       loadHero();
     }
-  }, [session]);
+    // Deliberately keyed on the user id, not the whole session object: Supabase
+    // silently refreshes the session (new object, same user) whenever the tab
+    // regains focus, which would otherwise re-trigger this fetch constantly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  useEffect(() => {
+    if (!editorRef.current) return;
+    const current = editingId ? articles.find((a) => a.id === editingId) : null;
+    editorRef.current.innerHTML = current ? (current.body_html || '') : '';
+    // Deliberately runs only when opening a new/different article (or when the
+    // form first mounts), not on every re-render — otherwise unrelated state
+    // changes (like the periodic session-refresh refetch above) would wipe out
+    // whatever the editor has typed since, because contentEditable's live DOM
+    // is separate from React's own re-render diffing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingId, showForm]);
 
   if (session === undefined) return null;
 
@@ -286,7 +303,6 @@ export default function AdminPage() {
               contentEditable
               suppressContentEditableWarning
               ref={editorRef}
-              dangerouslySetInnerHTML={{ __html: editing ? (editing.body_html || '') : '' }}
             />
 
             {/* Hidden fields kept in the form so handleSave can read them via form.<name>.value */}
