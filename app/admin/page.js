@@ -287,8 +287,12 @@ export default function AdminPage() {
             &#9881; Settings
           </button>
 
-          {showSettings && (
-            <div className="editor-settings-overlay" onClick={() => setShowSettings(false)}>
+          {
+            <div
+              className="editor-settings-overlay"
+              style={{ display: showSettings ? 'flex' : 'none' }}
+              onClick={() => setShowSettings(false)}
+            >
               <div className="editor-settings-panel admin-form" onClick={(e) => e.stopPropagation()}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                   <h2 className="section-title" style={{ fontSize: 22 }}>Settings</h2>
@@ -352,7 +356,7 @@ export default function AdminPage() {
                 />
               </div>
             </div>
-          )}
+          }
       </form>
     );
   }
