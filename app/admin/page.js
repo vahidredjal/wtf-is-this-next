@@ -260,6 +260,17 @@ export default function AdminPage() {
               </select>
             </div>
 
+            <div className="editor-tldr-box">
+              <strong>Well, WTF is this?:</strong>
+              <textarea
+                className="editor-tldr-input"
+                name="tldr"
+                rows={2}
+                defaultValue={editing ? editing.tldr || '' : ''}
+                placeholder="One or two sentences summing up the story."
+              />
+            </div>
+
             <div className="editor-toolbar">
               <button type="button" title="Bold" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('bold')}><strong>B</strong></button>
               <button type="button" title="Italic" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('italic')}><em>I</em></button>
@@ -346,14 +357,6 @@ export default function AdminPage() {
 
                 <label>Read Time</label>
                 <input type="text" name="readTime" defaultValue={editing ? editing.read_time : ''} placeholder="e.g. 4 min read" />
-
-                <label>Well, WTF is this? (short TL;DR)</label>
-                <textarea
-                  name="tldr"
-                  style={{ minHeight: 80 }}
-                  defaultValue={editing ? editing.tldr || '' : ''}
-                  placeholder="One or two sentences summing up the story."
-                />
               </div>
             </div>
           }
