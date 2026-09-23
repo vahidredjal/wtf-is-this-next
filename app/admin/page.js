@@ -420,10 +420,17 @@ export default function AdminPage() {
     if (html) {
       toInsert = cleanPastedHtml(html);
     } else {
-      const text = e.clipboardData.getData('text/plain');
+      let text = e.clipboardData.getData('text/plain');
+      // Some sites' plain-text copy accidentally drags along the raw source
+      // of a nearby inline SVG icon (share button, bullet, etc.) when no
+      // rich HTML is available on the clipboard — strip that out rather
+      // than dumping raw path/coordinate data into the article as text.
+      text = text
+        .replace(/<svg[\s\S]*?<\/svg>/gi, '')
+        .replace(/<(svg|path|circle|rect|polygon|polyline|line|g)\b[^>]*\/?>(?:<\/\1>)?/gi, '');
       const esc = document.createElement('div');
       esc.textContent = text;
-      const lines = esc.innerHTML.split(/\r\n|\r|\n/).filter(Boolean);
+      const lines = esc.innerHTML.split(/\r\n|\r|\n/).map((l) => l.trim()).filter(Boolean);
       toInsert = lines.map((l) => '<p>' + l + '</p>').join('');
     }
     document.execCommand('insertHTML', false, toInsert);
