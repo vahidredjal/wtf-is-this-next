@@ -34,6 +34,118 @@ function isSafeHref(href) {
   }
 }
 
+// Reads bold/italic/underline/strikethrough/size/family off of a pasted
+// element's own tag name and inline style — pasted content (Word, Google
+// Docs, other sites) almost always expresses these via inline styles on
+// <span>/<div> rather than semantic tags, which our normal sanitizer
+// wouldn't recognize.
+function classifyPastedStyle(el) {
+  const style = (el.getAttribute && el.getAttribute('style')) || '';
+  const marks = { bold: false, italic: false, underline: false, strike: false, fontSize: null, fontFamily: null };
+
+  const tag = el.tagName;
+  if (tag === 'B' || tag === 'STRONG') marks.bold = true;
+  if (tag === 'I' || tag === 'EM') marks.italic = true;
+  if (tag === 'U') marks.underline = true;
+  if (tag === 'S' || tag === 'STRIKE' || tag === 'DEL') marks.strike = true;
+
+  const fw = /font-weight:\s*([^;]+)/i.exec(style);
+  if (fw) {
+    const v = fw[1].trim().toLowerCase();
+    if (v === 'bold' || v === 'bolder' || parseInt(v, 10) >= 600) marks.bold = true;
+  }
+  const fs = /font-style:\s*([^;]+)/i.exec(style);
+  if (fs && /italic|oblique/i.test(fs[1])) marks.italic = true;
+  const td = /text-decoration(?:-line)?:\s*([^;]+)/i.exec(style);
+  if (td) {
+    if (/underline/i.test(td[1])) marks.underline = true;
+    if (/line-through/i.test(td[1])) marks.strike = true;
+  }
+
+  const size = /font-size:\s*([\d.]+)(px|pt|em|rem)?/i.exec(style);
+  if (size) {
+    const num = parseFloat(size[1]);
+    const unit = (size[2] || 'px').toLowerCase();
+    const px = unit === 'pt' ? num * 1.333 : (unit === 'em' || unit === 'rem') ? num * 19 : num;
+    const presets = [14, 19, 24, 32];
+    const nearest = presets.reduce((a, b) => (Math.abs(b - px) < Math.abs(a - px) ? b : a));
+    marks.fontSize = nearest + 'px';
+  }
+  const fam = /font-family:\s*([^;]+)/i.exec(style);
+  if (fam) {
+    const f = fam[1].toLowerCase();
+    if (/mono|courier|consolas|menlo/.test(f)) marks.fontFamily = FONT_FAMILIES.mono;
+    else if (/serif/.test(f) && !/sans-serif/.test(f)) marks.fontFamily = FONT_FAMILIES.serif;
+  }
+  return marks;
+}
+
+function cleanPastedNode(node) {
+  if (node.nodeType === 3) return [document.createTextNode(node.textContent)];
+  if (node.nodeType !== 1) return [];
+
+  const tag = node.tagName;
+  if (tag === 'BR') return [document.createElement('br')];
+  if (tag === 'SCRIPT' || tag === 'STYLE') return [];
+
+  let children = [];
+  node.childNodes.forEach((c) => { children = children.concat(cleanPastedNode(c)); });
+
+  if (tag === 'A') {
+    const href = node.getAttribute('href') || '';
+    if (isSafeHref(href)) {
+      const a = document.createElement('a');
+      a.setAttribute('href', href);
+      a.setAttribute('target', '_blank');
+      a.setAttribute('rel', 'noopener noreferrer nofollow');
+      children.forEach((c) => a.appendChild(c));
+      return [a];
+    }
+    return children;
+  }
+
+  const marks = classifyPastedStyle(node);
+  let wrapped = children;
+
+  function wrapAll(tagName) {
+    const el = document.createElement(tagName);
+    wrapped.forEach((c) => el.appendChild(c));
+    wrapped = [el];
+  }
+
+  if (marks.bold) wrapAll('strong');
+  if (marks.italic) wrapAll('em');
+  if (marks.underline) wrapAll('u');
+  if (marks.strike) wrapAll('s');
+  if (marks.fontSize || marks.fontFamily) {
+    const span = document.createElement('span');
+    const parts = [];
+    if (marks.fontSize) parts.push('font-size:' + marks.fontSize);
+    if (marks.fontFamily) parts.push('font-family:' + marks.fontFamily);
+    span.setAttribute('style', parts.join('; '));
+    wrapped.forEach((c) => span.appendChild(c));
+    wrapped = [span];
+  }
+
+  const isBlock = tag === 'P' || tag === 'DIV' || tag === 'LI' || /^H[1-6]$/.test(tag);
+  if (isBlock) {
+    const p = document.createElement('p');
+    wrapped.forEach((c) => p.appendChild(c));
+    return [p];
+  }
+  return wrapped;
+}
+
+function cleanPastedHtml(html) {
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  let result = [];
+  container.childNodes.forEach((c) => { result = result.concat(cleanPastedNode(c)); });
+  const out = document.createElement('div');
+  result.forEach((n) => out.appendChild(n));
+  return out.innerHTML;
+}
+
 function sanitizeHtml(html) {
   const container = document.createElement('div');
   container.innerHTML = html;
@@ -301,6 +413,22 @@ export default function AdminPage() {
     document.execCommand('createLink', false, url);
   }
 
+  function handlePaste(e) {
+    e.preventDefault();
+    const html = e.clipboardData.getData('text/html');
+    let toInsert;
+    if (html) {
+      toInsert = cleanPastedHtml(html);
+    } else {
+      const text = e.clipboardData.getData('text/plain');
+      const esc = document.createElement('div');
+      esc.textContent = text;
+      const lines = esc.innerHTML.split(/\r\n|\r|\n/).filter(Boolean);
+      toInsert = lines.map((l) => '<p>' + l + '</p>').join('');
+    }
+    document.execCommand('insertHTML', false, toInsert);
+  }
+
   if (showForm) {
     return (
       <form
@@ -385,6 +513,7 @@ export default function AdminPage() {
               contentEditable
               suppressContentEditableWarning
               ref={editorRef}
+              onPaste={handlePaste}
             />
 
             {/* Hidden fields kept in the form so handleSave can read them via form.<name>.value */}
