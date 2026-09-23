@@ -131,14 +131,18 @@
   .editor-pill-input { border: none; background: transparent; outline: none; font: inherit; color: inherit; width: 150px; }
   .editor-pill-select { border: none; background: transparent; outline: none; font: inherit; color: inherit; cursor: pointer; padding: 0; }
   .editor-toolbar {
-    display: flex; gap: 4px; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
-    margin-bottom: 28px; position: sticky; top: 65px; background: var(--bg); z-index: 15;
+    display: flex; align-items: center; gap: 4px; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    margin-bottom: 28px; position: sticky; top: 65px; background: var(--bg); z-index: 15; flex-wrap: wrap;
   }
   .editor-toolbar button {
     border: none; background: none; width: 36px; height: 36px; border-radius: 6px; cursor: pointer;
     color: var(--fg); font-size: 15px; display: flex; align-items: center; justify-content: center; font-family: inherit;
   }
   .editor-toolbar button:hover { background: var(--bg-alt); }
+  .editor-toolbar button.editor-toolbar-wide {
+    width: auto; padding: 0 10px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em;
+  }
+  .editor-toolbar-divider { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
   .editor-body { min-height: 400px; font-size: 19px; line-height: 1.7; color: var(--fg); outline: none; }
   .editor-body p { margin: 0 0 20px; }
   .editor-body a { color: var(--accent-text); text-decoration: underline; }

@@ -5,7 +5,25 @@ import { supabase } from '../../lib/supabaseClient';
 import { CATS, CAT_LABEL } from '../../lib/categories';
 import { POSITION_LABEL, POSITION_CSS, FIT_LABEL } from '../../lib/imageFit';
 
-const ALLOWED_TAGS = { P: 1, STRONG: 1, B: 1, EM: 1, I: 1, S: 1, STRIKE: 1, U: 1, BR: 1, A: 1 };
+const ALLOWED_TAGS = { P: 1, STRONG: 1, B: 1, EM: 1, I: 1, S: 1, STRIKE: 1, U: 1, BR: 1, A: 1, SPAN: 1 };
+
+const FONT_SIZES = { small: '14px', normal: '19px', large: '24px', xlarge: '32px' };
+const FONT_FAMILIES = {
+  sans: "'Work Sans', system-ui, sans-serif",
+  serif: "Georgia, 'Times New Roman', serif",
+  mono: "'Courier New', Courier, monospace"
+};
+const SAFE_FONT_SIZE_VALUES = Object.values(FONT_SIZES).reduce((acc, v) => { acc[v] = 1; return acc; }, {});
+const SAFE_FONT_FAMILY_VALUES = Object.values(FONT_FAMILIES).reduce((acc, v) => { acc[v] = 1; return acc; }, {});
+
+function sanitizeStyle(styleValue) {
+  var out = [];
+  var sizeMatch = /font-size:\s*([^;]+)/i.exec(styleValue || '');
+  if (sizeMatch && SAFE_FONT_SIZE_VALUES[sizeMatch[1].trim()]) out.push('font-size:' + sizeMatch[1].trim());
+  var familyMatch = /font-family:\s*([^;]+)/i.exec(styleValue || '');
+  if (familyMatch && SAFE_FONT_FAMILY_VALUES[familyMatch[1].trim()]) out.push('font-family:' + familyMatch[1].trim());
+  return out.join('; ');
+}
 
 function isSafeHref(href) {
   try {
@@ -46,6 +64,17 @@ function sanitizeHtml(html) {
             child.setAttribute('rel', 'noopener noreferrer nofollow');
             clean(child);
           } else {
+            while (child.firstChild) node.insertBefore(child.firstChild, child);
+            node.removeChild(child);
+          }
+        } else if (child.tagName === 'SPAN') {
+          const safeStyle = sanitizeStyle(child.getAttribute('style'));
+          while (child.attributes.length) child.removeAttribute(child.attributes[0].name);
+          if (safeStyle) {
+            child.setAttribute('style', safeStyle);
+            clean(child);
+          } else {
+            // Nothing safe left to keep it for — unwrap rather than keep a bare span.
             while (child.firstChild) node.insertBefore(child.firstChild, child);
             node.removeChild(child);
           }
@@ -237,6 +266,31 @@ export default function AdminPage() {
     document.execCommand(cmd);
   }
 
+  function replaceFontTags(selector, apply) {
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.querySelectorAll(selector).forEach((f) => {
+      const span = document.createElement('span');
+      apply(span);
+      while (f.firstChild) span.appendChild(f.firstChild);
+      f.parentNode.replaceChild(span, f);
+    });
+  }
+
+  // execCommand('fontSize'/'fontName') only understands legacy <font> tags,
+  // not real CSS — so we use an out-of-range marker value to make the
+  // resulting <font> elements easy to find, then swap each for a <span>
+  // with the actual font-size/font-family style we want.
+  function applyFontSize(px) {
+    document.execCommand('fontSize', false, '7');
+    replaceFontTags('font[size="7"]', (span) => { span.style.fontSize = px; });
+  }
+
+  function applyFontFamily(family) {
+    document.execCommand('fontName', false, 'wtf-tmp-font');
+    replaceFontTags('font[face="wtf-tmp-font"]', (span) => { span.style.fontFamily = family; });
+  }
+
   function insertLink() {
     const url = window.prompt('Link URL (include https://):', 'https://');
     if (!url) return;
@@ -310,6 +364,19 @@ export default function AdminPage() {
               <button type="button" title="Underline" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('underline')}><u>U</u></button>
               <button type="button" title="Add link" onMouseDown={(e) => e.preventDefault()} onClick={insertLink}>&#128279;</button>
               <button type="button" title="Remove link" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('unlink')}>&#128279;&#8416;</button>
+
+              <span className="editor-toolbar-divider" />
+
+              <button type="button" className="editor-toolbar-wide" title="Small text" onMouseDown={(e) => e.preventDefault()} onClick={() => applyFontSize(FONT_SIZES.small)}>S</button>
+              <button type="button" className="editor-toolbar-wide" title="Normal text" onMouseDown={(e) => e.preventDefault()} onClick={() => applyFontSize(FONT_SIZES.normal)}>M</button>
+              <button type="button" className="editor-toolbar-wide" title="Large text" onMouseDown={(e) => e.preventDefault()} onClick={() => applyFontSize(FONT_SIZES.large)}>L</button>
+              <button type="button" className="editor-toolbar-wide" title="Extra-large text" onMouseDown={(e) => e.preventDefault()} onClick={() => applyFontSize(FONT_SIZES.xlarge)}>XL</button>
+
+              <span className="editor-toolbar-divider" />
+
+              <button type="button" className="editor-toolbar-wide" title="Sans-serif font" style={{ fontFamily: FONT_FAMILIES.sans }} onMouseDown={(e) => e.preventDefault()} onClick={() => applyFontFamily(FONT_FAMILIES.sans)}>Sans</button>
+              <button type="button" className="editor-toolbar-wide" title="Serif font" style={{ fontFamily: FONT_FAMILIES.serif }} onMouseDown={(e) => e.preventDefault()} onClick={() => applyFontFamily(FONT_FAMILIES.serif)}>Serif</button>
+              <button type="button" className="editor-toolbar-wide" title="Monospace font" style={{ fontFamily: FONT_FAMILIES.mono }} onMouseDown={(e) => e.preventDefault()} onClick={() => applyFontFamily(FONT_FAMILIES.mono)}>Mono</button>
             </div>
 
             <div
