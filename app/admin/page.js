@@ -24,7 +24,17 @@ function sanitizeHtml(html) {
     while (child) {
       const next = child.nextSibling;
       if (child.nodeType === 1) {
-        if (!ALLOWED_TAGS[child.tagName]) {
+        if (child.tagName === 'DIV') {
+          // Browsers sometimes wrap each line typed in a contentEditable area
+          // in a plain <div> instead of a <p> (e.g. pressing Enter before the
+          // defaultParagraphSeparator fix above takes effect, or content
+          // pasted from elsewhere). Treat it as a paragraph instead of
+          // stripping it, so the line break it represents survives.
+          const p = document.createElement('P');
+          while (child.firstChild) p.appendChild(child.firstChild);
+          node.replaceChild(p, child);
+          clean(p);
+        } else if (!ALLOWED_TAGS[child.tagName]) {
           while (child.firstChild) node.insertBefore(child.firstChild, child);
           node.removeChild(child);
         } else if (child.tagName === 'A') {
@@ -97,6 +107,11 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!editorRef.current) return;
+    // Without this, pressing Enter in the editor makes the browser insert a
+    // plain <div> for each new line instead of a real <p>, which then gets
+    // stripped out entirely when saving (divs aren't a formatting tag we
+    // allow), silently merging separate paragraphs into one run-on block.
+    try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch (e) {}
     const current = editingId ? articles.find((a) => a.id === editingId) : null;
     editorRef.current.innerHTML = current ? (current.body_html || '') : '';
     // Deliberately runs only when opening a new/different article (or when the
