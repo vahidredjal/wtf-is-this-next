@@ -218,6 +218,25 @@ function sanitizeHtml(html) {
       child = next;
     }
   })(container);
+  // Drop paragraphs/list items that end up with no visible text — these
+  // accumulate silently from sources (Google Docs, Word) that encode every
+  // blank line as its own empty paragraph, producing large dead gaps in the
+  // published article instead of any visible content.
+  (function removeEmptyBlocks(node) {
+    let child = node.firstChild;
+    while (child) {
+      const next = child.nextSibling;
+      if (child.nodeType === 1) {
+        removeEmptyBlocks(child);
+        if ((child.tagName === 'P' || child.tagName === 'LI') && !child.textContent.trim()) {
+          node.removeChild(child);
+        } else if ((child.tagName === 'UL' || child.tagName === 'OL') && !child.firstChild) {
+          node.removeChild(child);
+        }
+      }
+      child = next;
+    }
+  })(container);
   return container.innerHTML;
 }
 
