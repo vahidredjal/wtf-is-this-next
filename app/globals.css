@@ -81,6 +81,9 @@
   .error-status { font-size: 13px; color: var(--accent-text); margin-top: 12px; min-height: 18px; }
   .delete-confirm { background: var(--bg-alt); border: 1px solid var(--line-strong); border-radius: 8px; padding: 16px; margin-top: 12px; }
   .article-body p { font-size: 18px; line-height: 1.7; color: var(--fg); margin: 0; }
+  .article-body ul, .article-body ol { font-size: 18px; line-height: 1.7; color: var(--fg); margin: 0; padding-left: 28px; }
+  .article-body li { margin: 0 0 10px; }
+  .article-body li:last-child { margin-bottom: 0; }
   .article-body a, .rich-editor a { color: var(--accent-text); text-decoration: underline; }
   .tldr-box { background: var(--bg-alt); border-left: 4px solid var(--accent-text); border-radius: 4px; padding: 20px 24px; font-size: 18px; line-height: 1.6; color: var(--fg); }
   .rich-toolbar { display: flex; gap: 6px; margin-bottom: 8px; }
@@ -145,6 +148,9 @@
   .editor-toolbar-divider { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
   .editor-body { min-height: 400px; font-size: 19px; line-height: 1.7; color: var(--fg); outline: none; }
   .editor-body p { margin: 0 0 20px; }
+  .editor-body ul, .editor-body ol { margin: 0 0 20px; padding-left: 28px; }
+  .editor-body li { margin: 0 0 10px; }
+  .editor-body li:last-child { margin-bottom: 0; }
   .editor-body a { color: var(--accent-text); text-decoration: underline; }
   .editor-body:empty::before { content: attr(data-placeholder); color: var(--fg-dim); opacity: 0.7; }
 

@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { CATS, CAT_LABEL } from '../../lib/categories';
 import { POSITION_LABEL, POSITION_CSS, FIT_LABEL } from '../../lib/imageFit';
 
-const ALLOWED_TAGS = { P: 1, STRONG: 1, B: 1, EM: 1, I: 1, S: 1, STRIKE: 1, U: 1, BR: 1, A: 1, SPAN: 1 };
+const ALLOWED_TAGS = { P: 1, STRONG: 1, B: 1, EM: 1, I: 1, S: 1, STRIKE: 1, U: 1, BR: 1, A: 1, SPAN: 1, UL: 1, OL: 1, LI: 1 };
 
 const FONT_SIZES = { small: '14px', normal: '19px', large: '24px', xlarge: '32px' };
 const FONT_FAMILIES = {
@@ -104,6 +104,19 @@ function cleanPastedNode(node) {
     return children;
   }
 
+  // Lists keep their own structure (bullets/numbering) instead of being
+  // flattened into plain paragraphs like other block-level content below.
+  if (tag === 'UL' || tag === 'OL') {
+    const list = document.createElement(tag.toLowerCase());
+    children.forEach((c) => list.appendChild(c));
+    return [list];
+  }
+  if (tag === 'LI') {
+    const li = document.createElement('li');
+    children.forEach((c) => li.appendChild(c));
+    return [li];
+  }
+
   const marks = classifyPastedStyle(node);
   let wrapped = children;
 
@@ -127,7 +140,12 @@ function cleanPastedNode(node) {
     wrapped = [span];
   }
 
-  const isBlock = tag === 'P' || tag === 'DIV' || tag === 'LI' || /^H[1-6]$/.test(tag);
+  // Any other block-level container (div, blockquote, heading, article
+  // section, etc.) gets its contents wrapped in a <p> rather than dropped
+  // bare at the top level — bare text outside a <p> silently loses the
+  // site's paragraph styling (font-size/line-height/color).
+  const isBlock = tag === 'P' || tag === 'DIV' || /^H[1-6]$/.test(tag) ||
+    ['BLOCKQUOTE', 'SECTION', 'ARTICLE', 'HEADER', 'FOOTER', 'PRE', 'DD', 'DT', 'FIGCAPTION'].indexOf(tag) !== -1;
   if (isBlock) {
     const p = document.createElement('p');
     wrapped.forEach((c) => p.appendChild(c));
